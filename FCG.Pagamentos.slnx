@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="FCG.Pagamentos.Application/FCG.Pagamentos.Application.csproj" />
+  <Project Path="FCG.Pagamentos.Infrastructure/FCG.Pagamentos.Infrastructure.csproj" />
+  <Project Path="FCG.Pagamentos.Worker/FCG.Pagamentos.Worker.csproj" />
+  <Project Path="FCG.Pagamentos.Domain/FCG.Pagamentos.Domain.csproj" />
+</Solution>
