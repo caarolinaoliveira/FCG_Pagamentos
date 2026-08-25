@@ -31,6 +31,7 @@ namespace FCG.Pagamentos.Infrastructure.Messaging
                     using var scope = _scopeFactory.CreateScope();
                     var pagamentoRepository = scope.ServiceProvider.GetRequiredService<IPagamentoRepository>();
                     var messagePublisher = scope.ServiceProvider.GetRequiredService<IMessagePublisher>();
+                    var sqsPublisher = scope.ServiceProvider.GetRequiredService<ISqsPublisher>();
 
                     var pendentes = await pagamentoRepository.ObterNaoPublicadosAsync();
 
@@ -49,6 +50,7 @@ namespace FCG.Pagamentos.Infrastructure.Messaging
 
                             await messagePublisher.PublicarAsync(evento, "payment.processed");
                             await messagePublisher.PublicarAsync(evento, "payment.processed.notificacoes");
+                            await sqsPublisher.PublicarAsync(evento, "payment-processed-notificacoes");
 
 
                             pagamento.EventoPublicado = true;
