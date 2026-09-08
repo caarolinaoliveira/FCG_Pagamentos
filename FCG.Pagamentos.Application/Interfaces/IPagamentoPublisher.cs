@@ -4,6 +4,6 @@ namespace FCG.Pagamentos.Application.Interfaces
 {
     public interface IPagamentoService
     {
-        Task ProcessarAsync(OrderPlacedEvent evento);
+        Task ProcessarAsync(OrderPlacedEvent evento, CancellationToken cancellationToken = default);
     }
 }

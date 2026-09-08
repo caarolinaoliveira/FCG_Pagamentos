@@ -6,8 +6,12 @@ namespace FCG.Pagamentos.Application.Services
 {
     public class PagamentoService : IPagamentoService
     {
+        private const string TopicoPagamentoProcessado = "payment.processed";
+        private const int ProbabilidadeAprovacaoPercentual = 80; // 8 em 10
+
         private readonly IMessagePublisher _messagePublisher;
         private readonly ILogger<PagamentoService> _logger;
+        private readonly Random _random = Random.Shared;
 
         public PagamentoService(
             IMessagePublisher messagePublisher,
@@ -17,29 +21,58 @@ namespace FCG.Pagamentos.Application.Services
             _logger = logger;
         }
 
-        public async Task ProcessarAsync(OrderPlacedEvent evento)
+        public async Task ProcessarAsync(OrderPlacedEvent evento, CancellationToken cancellationToken = default)
         {
-            _logger.LogInformation(
-                "[PAGAMENTOS] Processando pagamento | UserId: {UserId} | GameId: {GameId} | Price: {Price}",
-                evento.UserId, evento.GameId, evento.Price);
+            ArgumentNullException.ThrowIfNull(evento);
 
-            var aprovado = new Random().Next(1, 10) > 2;
-            var status = aprovado ? "Approved" : "Rejected";
+            using var scope = _logger.BeginScope(new Dictionary<string, object>
+            {
+                ["UserId"] = evento.UserId,
+                ["GameId"] = evento.GameId
+            });
+
+            _logger.LogInformation(
+                "Processando pagamento no valor de {Price:C} para o jogo {GameId}",
+                evento.Price, evento.GameId);
+
+            var aprovado = _random.Next(1, 101) <= ProbabilidadeAprovacaoPercentual;
+            var status = aprovado ? PaymentStatus.Approved : PaymentStatus.Rejected;
 
             var resultado = new PaymentProcessedEvent
             {
                 UserId = evento.UserId,
                 GameId = evento.GameId,
                 Price = evento.Price,
-                Status = status,
+                Status = status.ToString(),
                 ProcessedAt = DateTime.UtcNow
             };
 
-            await _messagePublisher.PublicarAsync(resultado, "payment.processed");
+            try
+            {
+                await _messagePublisher.PublicarAsync(resultado, TopicoPagamentoProcessado);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Falha ao publicar resultado de pagamento {Status} para o jogo {GameId}",
+                    status, evento.GameId);
+                throw;
+            }
 
-            _logger.LogInformation(
-                "[PAGAMENTOS] Pagamento {Status} | UserId: {UserId} | GameId: {GameId}",
-                status, evento.UserId, evento.GameId);
+            if (aprovado)
+            {
+                _logger.LogInformation("Pagamento aprovado para o jogo {GameId}", evento.GameId);
+            }
+            else
+            {
+                _logger.LogWarning("Pagamento rejeitado para o jogo {GameId}", evento.GameId);
+            }
         }
+    }
+
+    public enum PaymentStatus
+    {
+        Approved,
+        Rejected
     }
 }
