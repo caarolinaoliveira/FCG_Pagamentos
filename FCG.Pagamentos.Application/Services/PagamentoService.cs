@@ -7,7 +7,7 @@ namespace FCG.Pagamentos.Application.Services
     public class PagamentoService : IPagamentoService
     {
         private const string TopicoPagamentoProcessado = "payment.processed";
-        private const int ProbabilidadeAprovacaoPercentual = 80; // 8 em 10
+        private const int ProbabilidadeAprovacaoPercentual = 50; 
 
         private readonly IMessagePublisher _messagePublisher;
         private readonly ILogger<PagamentoService> _logger;
