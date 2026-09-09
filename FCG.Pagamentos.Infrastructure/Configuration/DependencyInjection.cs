@@ -9,6 +9,7 @@ using FCG.Pagamentos.Infrastructure.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Driver;
 using Polly;
 using RabbitMQ.Client;
 
@@ -46,6 +47,9 @@ namespace FCG.Pagamentos.Infrastructure.Configuration
                     exceptionsAllowedBeforeBreaking: 3,
                     durationOfBreak: TimeSpan.FromSeconds(30)
                 ));
+
+            services.AddSingleton<IMongoClient>(sp =>
+                new MongoClient(configuration["MongoDB:ConnectionString"] ?? "mongodb://localhost:27017"));
 
             services.AddScoped<IMessagePublisher, RabbitMQPublisher>();
 
