@@ -11,13 +11,16 @@ namespace FCG.Pagamentos.Infrastructure.Messaging
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<OutboxPublisher> _logger;
+        private readonly IErroLogService _erroLogService;
 
         public OutboxPublisher(
             IServiceScopeFactory scopeFactory,
-            ILogger<OutboxPublisher> logger)
+            ILogger<OutboxPublisher> logger,
+            IErroLogService erroLogService)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
+            _erroLogService = erroLogService;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -65,12 +68,15 @@ namespace FCG.Pagamentos.Infrastructure.Messaging
                         catch (Exception ex)
                         {
                             _logger.LogError(ex, "[OUTBOX] Erro ao publicar evento | PagamentoId: {Id}", pagamento.Id);
+                            await _erroLogService.RegistrarAsync(ex, "OutboxPublisher.PublicarPagamento",
+                                new { PagamentoId = pagamento.Id, pagamento.UserId, pagamento.GameId });
                         }
                     }
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "[OUTBOX] Erro geral no publisher.");
+                    await _erroLogService.RegistrarAsync(ex, "OutboxPublisher.ExecuteAsync");
                 }
 
                 await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);

@@ -33,17 +33,20 @@ namespace FCG.Pagamentos.Infrastructure.Messaging
         private readonly IConnection _connection;
         private IChannel? _channel;
         private readonly AsyncCircuitBreakerPolicy _circuitBreaker;
+        private readonly IErroLogService _erroLogService;
 
         public OrderPlacedConsumer(
             IServiceScopeFactory scopeFactory,
             ILogger<OrderPlacedConsumer> logger,
             IConnection connection,
-            AsyncCircuitBreakerPolicy circuitBreaker)
+            AsyncCircuitBreakerPolicy circuitBreaker,
+            IErroLogService erroLogService)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
             _connection = connection;
             _circuitBreaker = circuitBreaker;
+            _erroLogService = erroLogService;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -141,6 +144,8 @@ namespace FCG.Pagamentos.Infrastructure.Messaging
                 catch (BrokenCircuitException ex)
                 {
                     _logger.LogError(ex, "[PAGAMENTOS] Circuit breaker aberto — enviando para DLQ.");
+                    await _erroLogService.RegistrarAsync(ex, "OrderPlacedConsumer.CircuitBreakerAberto",
+                        new { MessageId = ea.BasicProperties.MessageId, Tentativas = tentativas });
                     await _channel.BasicNackAsync(ea.DeliveryTag, false, requeue: false);
                 }
                 catch (Exception ex)
@@ -150,6 +155,8 @@ namespace FCG.Pagamentos.Infrastructure.Messaging
                     if (tentativas >= 3)
                     {
                         _logger.LogError(ex, "[PAGAMENTOS] Máximo de tentativas — enviando para DLQ.");
+                        await _erroLogService.RegistrarAsync(ex, "OrderPlacedConsumer.MaximoTentativas",
+                            new { MessageId = ea.BasicProperties.MessageId, Tentativas = tentativas });
                         await _channel.BasicNackAsync(ea.DeliveryTag, false, requeue: false);
                         return;
                     }

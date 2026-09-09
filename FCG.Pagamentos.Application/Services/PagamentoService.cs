@@ -7,18 +7,21 @@ namespace FCG.Pagamentos.Application.Services
     public class PagamentoService : IPagamentoService
     {
         private const string TopicoPagamentoProcessado = "payment.processed";
-        private const int ProbabilidadeAprovacaoPercentual = 50; 
+        private const int ProbabilidadeAprovacaoPercentual = 50;
 
         private readonly IMessagePublisher _messagePublisher;
         private readonly ILogger<PagamentoService> _logger;
+        private readonly IErroLogService _erroLogService;
         private readonly Random _random = Random.Shared;
 
         public PagamentoService(
             IMessagePublisher messagePublisher,
-            ILogger<PagamentoService> logger)
+            ILogger<PagamentoService> logger,
+            IErroLogService erroLogService)
         {
             _messagePublisher = messagePublisher;
             _logger = logger;
+            _erroLogService = erroLogService;
         }
 
         public async Task ProcessarAsync(OrderPlacedEvent evento, CancellationToken cancellationToken = default)
@@ -56,6 +59,8 @@ namespace FCG.Pagamentos.Application.Services
                 _logger.LogError(ex,
                     "Falha ao publicar resultado de pagamento {Status} para o jogo {GameId}",
                     status, evento.GameId);
+                await _erroLogService.RegistrarAsync(ex, "PagamentoService.ProcessarAsync",
+                    new { evento.UserId, evento.GameId, Status = status.ToString() });
                 throw;
             }
 

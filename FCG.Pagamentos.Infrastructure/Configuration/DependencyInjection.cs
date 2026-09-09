@@ -4,6 +4,7 @@ using Amazon.SQS;
 using FCG.Pagamentos.Application.Interfaces;
 using FCG.Pagamentos.Domain.Interfaces;
 using FCG.Pagamentos.Infrastructure.Context;
+using FCG.Pagamentos.Infrastructure.Logging;
 using FCG.Pagamentos.Infrastructure.Messaging;
 using FCG.Pagamentos.Infrastructure.Repository;
 using Microsoft.EntityFrameworkCore;
@@ -52,6 +53,7 @@ namespace FCG.Pagamentos.Infrastructure.Configuration
                 new MongoClient(configuration["MongoDB:ConnectionString"] ?? "mongodb://localhost:27017"));
 
             services.AddScoped<IMessagePublisher, RabbitMQPublisher>();
+            services.AddSingleton<IErroLogService, ErroLogService>();
 
             // SQS (trigger do NotificationsAPI serverless)
             services.AddSingleton<IAmazonSQS>(sp =>
