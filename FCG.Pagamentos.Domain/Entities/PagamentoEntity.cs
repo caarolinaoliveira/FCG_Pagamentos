@@ -14,5 +14,10 @@ namespace FCG.Pagamentos.Domain.Entities
         public DateTime? EventoConsumidoEm { get; set; }
         public bool EventoPublicado { get; set; }
         public DateTime? EventoPublicadoEm { get; set; }
+
+        // Contexto de distributed tracing (W3C traceparent) capturado no consumo do
+        // OrderPlacedEvent, pra reconectar o trace quando o OutboxPublisher publicar
+        // o resultado de forma assíncrona (desacoplada da requisição original).
+        public string? TraceParent { get; set; }
     }
 }
