@@ -1,6 +1,3 @@
-using Amazon;
-using Amazon.Runtime;
-using Amazon.SQS;
 using FCG.Pagamentos.Application.Interfaces;
 using FCG.Pagamentos.Domain.Interfaces;
 using FCG.Pagamentos.Infrastructure.Context;
@@ -22,9 +19,14 @@ namespace FCG.Pagamentos.Infrastructure.Configuration
             this IServiceCollection services,
             IConfiguration configuration)
         {
+            // Lidos aqui (e não dentro das lambdas abaixo) para a aplicação falhar já no startup, e não no primeiro uso.
+            var connectionString = ObterObrigatorio(configuration, "ConnectionStrings:DefaultConnection");
+            var rabbitUsuario = ObterObrigatorio(configuration, "RabbitMQ:Usuario");
+            var rabbitSenha = ObterObrigatorio(configuration, "RabbitMQ:Senha");
+
             services.AddDbContext<PagamentosDbContext>(options =>
                 options.UseSqlServer(
-                    configuration.GetConnectionString("DefaultConnection"),
+                    connectionString,
                     b => b.MigrationsAssembly("FCG.Pagamentos.Infrastructure")
                 ));
 
@@ -36,8 +38,8 @@ namespace FCG.Pagamentos.Infrastructure.Configuration
                 {
                     HostName = configuration["RabbitMQ:Host"] ?? "localhost",
                     Port = int.Parse(configuration["RabbitMQ:Port"] ?? "5672"),
-                    UserName = configuration["RabbitMQ:Usuario"] ?? "guest",
-                    Password = configuration["RabbitMQ:Senha"] ?? "guest"
+                    UserName = rabbitUsuario,
+                    Password = rabbitSenha
                 };
                 return factory.CreateConnectionAsync().GetAwaiter().GetResult();
             });
@@ -55,23 +57,23 @@ namespace FCG.Pagamentos.Infrastructure.Configuration
             services.AddScoped<IMessagePublisher, RabbitMQPublisher>();
             services.AddSingleton<IErroLogService, ErroLogService>();
 
-            // SQS (trigger do NotificationsAPI serverless)
-            services.AddSingleton<IAmazonSQS>(sp =>
-            {
-                var sqsConfig = new AmazonSQSConfig
-                {
-                    ServiceURL = configuration["AWS:SqsServiceUrl"] ?? "http://localhost:4566",
-                    AuthenticationRegion = RegionEndpoint.USEast1.SystemName
-                };
-                return new AmazonSQSClient(new BasicAWSCredentials("test", "test"), sqsConfig);
-            });
-
-            services.AddScoped<ISqsPublisher, SqsPublisher>();
-
             services.AddHostedService<OrderPlacedConsumer>();
             services.AddHostedService<OutboxPublisher>();
 
             return services;
+        }
+
+        private static string ObterObrigatorio(IConfiguration configuration, string chave)
+        {
+            var valor = configuration[chave];
+
+            if (string.IsNullOrWhiteSpace(valor))
+                throw new InvalidOperationException(
+                    $"Configuração obrigatória '{chave}' não encontrada. " +
+                    $"Defina via 'dotnet user-secrets' (desenvolvimento) ou pela variável de ambiente " +
+                    $"'{chave.Replace(":", "__")}' (produção, injetada pelo Azure Key Vault).");
+
+            return valor;
         }
     }
 }
