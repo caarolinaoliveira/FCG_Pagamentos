@@ -37,6 +37,8 @@ Não há credenciais no código nem nos `appsettings.json`. Se uma variável obr
 
 ## Como rodar localmente
 
+Requisitos: .NET 10 SDK, Docker e Docker Compose.
+
 ### 1. Infraestrutura (SQL Server, RabbitMQ e MongoDB)
 
 ```bash
